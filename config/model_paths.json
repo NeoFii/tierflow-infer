@@ -1,0 +1,36 @@
+{
+  "qwen_backbone": "/root/autodl-tmp/model/backbone/Qwen2.5-7B-Instruct",
+  "hook_target_template": "layers.{layer}.self_attn.o_proj",
+  "device": "cuda:0",
+  "max_input_length": 4096,
+  "routers": {
+    "swe": {
+      "heads": [[27,5],[25,3],[27,16],[25,17],[27,1],[25,11],[27,0],[23,9],[20,2],[26,22],[25,1],[26,13],[20,19],[26,21],[26,24],[14,23],[25,20],[27,4],[19,24],[24,18],[25,13],[20,26],[7,10],[19,16],[18,17],[23,21],[24,12],[27,2],[19,22],[19,5]],
+      "model": "/root/autodl-tmp/model/5roads/swe/best_cg_tabm_router_swe.pth",
+      "scaler": "/root/autodl-tmp/model/5roads/swe/cg_tabm_robust_scaler_swe.pkl"
+    },
+    "tool": {
+      "heads": [[26,3],[26,19],[25,7],[27,15],[19,24],[26,2],[25,15],[27,3],[18,4],[26,18],[21,10],[27,19],[18,15],[23,14],[27,14],[26,8],[26,16],[20,26],[18,5],[22,22],[22,21],[24,5],[27,13],[18,7],[26,23],[26,22],[27,6],[25,11],[25,25],[27,20]],
+      "model": "/root/autodl-tmp/model/5roads/tool/best_cg_tabm_router_apibank.pth",
+      "scaler": "/root/autodl-tmp/model/5roads/tool/cg_tabm_robust_scaler_apibank.pkl",
+      "meta": ""
+    },
+    "gaia": {
+      "heads": [[20,2],[25,4],[26,26],[24,2],[27,3],[21,25],[27,9],[26,24],[26,3],[27,7],[20,1],[27,2],[18,18],[25,3],[25,18],[26,2],[26,15],[19,27],[27,23],[18,7],[19,16],[23,21],[26,18],[18,17],[21,23],[27,5],[25,11],[26,25],[19,0],[21,13]],
+      "model": "/root/autodl-tmp/model/5roads/gaia/final_cg_tabm_router_gaia_full_epoch36.pth",
+      "scaler": "/root/autodl-tmp/model/5roads/gaia/final_cg_tabm_robust_scaler_gaia_full_epoch36.pkl"
+    },
+    "task": {
+      "heads": [[25,1],[25,18],[25,15],[26,26],[26,23],[26,24],[9,7],[25,3],[18,15],[26,8],[21,6],[21,23],[26,25],[27,0],[26,12],[20,4],[20,22],[14,11],[27,3],[25,14],[19,23],[24,5],[26,4],[23,10],[25,11],[20,27],[20,0],[24,15],[18,10],[12,0]],
+      "model": "/root/autodl-tmp/model/5roads/task/best_cg_tabm_router.pth",
+      "scaler": "/root/autodl-tmp/model/5roads/task/cg_tabm_robust_scaler.pkl"
+    },
+    "prog": {
+      "heads": [[27,10],[26,22],[25,4],[27,8],[27,13],[26,12],[24,18],[21,23],[19,0],[26,25],[27,7],[24,5],[25,1],[26,26],[23,25],[18,7],[14,23],[26,8],[27,0],[6,10],[24,16],[24,22],[27,9],[16,13],[19,2],[24,2],[9,16],[20,16],[13,17],[15,26]],
+      "model": "/root/autodl-tmp/model/5roads/prog/best_cg_tabm_router_gaia.pth",
+      "scaler": "/root/autodl-tmp/model/5roads/prog/cg_tabm_robust_scaler_gaia.pkl",
+      "meta": ""
+    }
+  },
+  "proto_artifact": ""
+}
