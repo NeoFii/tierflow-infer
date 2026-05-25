@@ -11,10 +11,7 @@ from app.common.observability import get_logger
 
 logger = get_logger(C.UTIL_RUNTIME_CONFIG)
 
-from app.core.config import (
-    FIVEWAY_DEFAULT_WEIGHTS,
-    FIVEWAY_ROUTE_ORDER,
-)
+from app.core.config import FIVEWAY_ROUTE_ORDER
 from app.utils.scoring import parse_score_bands
 
 DEFAULT_ROUTER_ALIAS = "auto"
@@ -38,7 +35,6 @@ def build_default_runtime_config() -> Dict[str, Any]:
     return {
         "router_alias": DEFAULT_ROUTER_ALIAS,
         "route_order": list(FIVEWAY_ROUTE_ORDER),
-        "weights": dict(FIVEWAY_DEFAULT_WEIGHTS),
         "score_bands": "0-3:5,3-5:4,5-7:3,7-9:2,9-10:1",
         "tier_model_map": {
             "1": "gpt-5-4",
@@ -49,26 +45,6 @@ def build_default_runtime_config() -> Dict[str, Any]:
         },
         "model_providers": {},
     }
-
-
-def _validate_weights(weights_raw: Any, defaults: Dict[str, float]) -> Dict[str, float]:
-    if isinstance(weights_raw, list):
-        if len(weights_raw) != 5:
-            raise ValueError("weights list must contain exactly 5 numbers")
-        weights = dict(zip(FIVEWAY_ROUTE_ORDER, [float(x) for x in weights_raw]))
-    elif isinstance(weights_raw, dict):
-        weights = {}
-        for name in FIVEWAY_ROUTE_ORDER:
-            if name not in weights_raw:
-                raise ValueError(f"weights is missing route: {name}")
-            weights[name] = float(weights_raw[name])
-    else:
-        raise ValueError("weights must be a dict or a list")
-    if any(value < 0 for value in weights.values()):
-        raise ValueError("weights must be non-negative")
-    if sum(weights.values()) <= 0:
-        raise ValueError("weights sum must be greater than 0")
-    return weights
 
 
 def _validate_score_bands(
@@ -123,7 +99,7 @@ def normalize_config(
 
     Args:
         raw: Raw config dict. None uses defaults.
-        strip_providers: If True, set model_providers to {} (for inference-service).
+        strip_providers: If True, set model_providers to {} (for tierflow-infer).
         use_defaults: If True, fall back to build_default_runtime_config() for missing fields.
     """
     base = build_default_runtime_config() if use_defaults else {}
@@ -133,14 +109,11 @@ def normalize_config(
     if route_order != list(FIVEWAY_ROUTE_ORDER):
         raise ValueError(f"route_order must exactly match {FIVEWAY_ROUTE_ORDER}")
 
-    weights_raw = raw.get("weights", base.get("weights", dict(FIVEWAY_DEFAULT_WEIGHTS)))
-    weights = _validate_weights(weights_raw, FIVEWAY_DEFAULT_WEIGHTS)
-
     score_bands_value = raw.get("score_bands", base.get("score_bands"))
     if not score_bands_value:
         defaults = build_default_runtime_config()
         score_bands_value = defaults["score_bands"]
-        logger.warning("score_bands empty in remote config, using defaults")
+        logger.warning("远程配置中 score_bands 为空，使用默认值")
     score_bands_raw_hint = str(raw.get("score_bands_raw", "")).strip()
     score_bands, score_bands_raw = _validate_score_bands(score_bands_value, score_bands_raw_hint)
 
@@ -148,7 +121,7 @@ def normalize_config(
     if not tier_map_raw:
         defaults = build_default_runtime_config()
         tier_map_raw = defaults["tier_model_map"]
-        logger.warning("tier_model_map empty in remote config, using defaults")
+        logger.warning("远程配置中 tier_model_map 为空，使用默认值")
     tier_model_map = _validate_tier_model_map(tier_map_raw)
     if not tier_model_map:
         defaults = build_default_runtime_config()
@@ -185,7 +158,6 @@ def normalize_config(
     return {
         "router_alias": router_alias,
         "route_order": list(FIVEWAY_ROUTE_ORDER),
-        "weights": weights,
         "score_bands_raw": score_bands_raw,
         "score_bands": score_bands,
         "tier_model_map": tier_model_map,
@@ -203,18 +175,15 @@ def normalize_inference_config(raw: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def normalize_profile_config(raw: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize a single profile config for inference-service.
+    """Normalize a single profile config for tierflow-infer.
 
-    Only validates weights and route_order. Fills in default score_bands and
+    Only validates route_order. Fills in default score_bands and
     tier_model_map so the engine's internal computation doesn't break, but
     these values are NOT exposed in the ClassifyResponse (D-08).
     """
     route_order = raw.get("route_order") or list(FIVEWAY_ROUTE_ORDER)
     if route_order != list(FIVEWAY_ROUTE_ORDER):
         raise ValueError(f"route_order must exactly match {FIVEWAY_ROUTE_ORDER}")
-
-    weights_raw = raw.get("weights", dict(FIVEWAY_DEFAULT_WEIGHTS))
-    weights = _validate_weights(weights_raw, FIVEWAY_DEFAULT_WEIGHTS)
 
     # Fill defaults for engine internals (score_bands/tier_model_map required by engine)
     defaults = build_default_runtime_config()
@@ -224,7 +193,6 @@ def normalize_profile_config(raw: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "router_alias": raw.get("slug", "unknown"),
         "route_order": list(FIVEWAY_ROUTE_ORDER),
-        "weights": weights,
         "score_bands_raw": score_bands_raw,
         "score_bands": score_bands,
         "tier_model_map": tier_model_map,
@@ -236,7 +204,6 @@ def clone_runtime_config(config: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "router_alias": config["router_alias"],
         "route_order": list(config["route_order"]),
-        "weights": dict(config["weights"]),
         "score_bands_raw": config["score_bands_raw"],
         "score_bands": list(config["score_bands"]),
         "tier_model_map": dict(config["tier_model_map"]),

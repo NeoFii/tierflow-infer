@@ -1,4 +1,4 @@
-"""Centralized component identifiers for inference-service structured logging."""
+"""Centralized component identifiers for tierflow-infer structured logging."""
 
 from __future__ import annotations
 

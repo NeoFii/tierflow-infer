@@ -1,4 +1,4 @@
-"""ConfigManager: admin-service config with cached_previous fallback."""
+"""ConfigManager: tierflow-core config with cached_previous fallback."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ _logger = get_logger(C.CLASSIFY_CONFIG)
 
 
 class ConfigManager:
-    """Manage routing configuration with admin-service as sole source.
+    """Manage routing configuration with tierflow-core as sole source.
 
     Supports multi-profile mode (D-05): maintains a dict[slug, config] mapping.
     """
@@ -56,25 +56,25 @@ class ConfigManager:
         except InternalServiceResponseError as exc:
             if exc.status_code in (401, 403):
                 raise RuntimeError(
-                    f"admin-service rejected credentials (HTTP {exc.status_code}): {exc.detail}"
+                    f"tierflow-core rejected credentials (HTTP {exc.status_code}): {exc.detail}"
                 ) from exc
             raise RuntimeError(
-                f"failed to fetch routing config from admin-service (HTTP {exc.status_code})"
+                f"failed to fetch routing config from tierflow-core (HTTP {exc.status_code})"
             ) from exc
         except Exception as exc:
             raise RuntimeError(
-                "failed to fetch routing config from admin-service"
+                "failed to fetch routing config from tierflow-core"
             ) from exc
 
         if admin_config is None:
             raise RuntimeError(
-                "admin-service returned no active routing config"
+                "tierflow-core returned no active routing config"
             )
 
         self._apply_config(admin_config)
         log_event(
-            _logger, logging.INFO, "configLoadedFromAdmin",
-            message="路由配置已从 admin-service 加载",
+            _logger, logging.INFO, "config_loaded",
+            message="路由配置已从 tierflow-core 加载",
             version=self._config_version,
             profileCount=len(self._profiles),
         )
@@ -138,12 +138,12 @@ class ConfigManager:
                 if resp is None:
                     if self._config_source == "admin":
                         self._config_source = "cached_previous"
-                        _logger.warning("admin config unavailable, using cached_previous")
+                        _logger.warning("tierflow-core 配置不可用，使用缓存配置")
                     continue
                 new_version = resp.get("version")
                 if new_version != self._config_version:
                     log_event(
-                        _logger, logging.INFO, "configUpdated",
+                        _logger, logging.INFO, "config_updated",
                         message="路由配置版本已更新",
                         oldVersion=self._config_version,
                         newVersion=new_version,
@@ -154,12 +154,12 @@ class ConfigManager:
             except InternalServiceResponseError as exc:
                 if exc.status_code in (401, 403):
                     _logger.error(
-                        "admin credentials rejected (HTTP %s), using cached config",
+                        "HMAC 认证被拒绝 (HTTP %s)，使用缓存配置",
                         exc.status_code,
                     )
                 else:
                     _logger.warning(
-                        "config refresh failed (HTTP %s), keeping current config",
+                        "配置刷新失败 (HTTP %s)，保持当前配置",
                         exc.status_code,
                         exc_info=True,
                     )
@@ -168,4 +168,4 @@ class ConfigManager:
             except Exception:
                 if self._config_source == "admin":
                     self._config_source = "cached_previous"
-                _logger.warning("config refresh failed, keeping current config", exc_info=True)
+                _logger.warning("配置刷新失败，保持当前配置", exc_info=True)

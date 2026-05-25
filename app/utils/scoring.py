@@ -94,18 +94,18 @@ def resolve_score_band(score: float, bands: List[Tuple[float, float, int]]) -> i
 
 def compute_weighted_total_score_0_10(
     route_scores_0_2: Dict[str, float],
-    weights: Dict[str, float],
 ) -> Tuple[float, Dict[str, float]]:
-    total_weight = sum(weights[name] for name in FIVEWAY_ROUTE_ORDER)
-    if total_weight <= 0:
-        raise ValueError("weights sum must be greater than 0")
-    weighted_components = {
-        name: float(route_scores_0_2[name]) * float(weights[name])
+    """Aggregate 5-way route scores with equal weighting (1.0 each).
+
+    Returns (total_score_0_10, per-route components used for the average).
+    """
+    components = {
+        name: float(route_scores_0_2[name])
         for name in FIVEWAY_ROUTE_ORDER
     }
-    weighted_average_0_2 = sum(weighted_components.values()) / total_weight
-    total_score_0_10 = weighted_average_0_2 * 5.0
-    return float(total_score_0_10), weighted_components
+    average_0_2 = sum(components.values()) / len(FIVEWAY_ROUTE_ORDER)
+    total_score_0_10 = average_0_2 * 5.0
+    return float(total_score_0_10), components
 
 
 def normalize_route(route_name: str, raw_score: float) -> Tuple[float, str]:

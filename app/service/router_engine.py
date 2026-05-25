@@ -127,7 +127,7 @@ def _ensure_special_tokens_map(model_dir: str) -> str:
     with open(os.path.join(overlay, "special_tokens_map.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    logger.info("created special_tokens_map overlay at %s", overlay)
+    logger.info("special_tokens_map overlay 已创建: %s", overlay)
     return overlay
 
 
@@ -160,7 +160,7 @@ class HybridIntegratedDifficultyRouter:
         self.max_input_length = model_paths.max_input_length
         self.default_runtime_config = normalize_runtime_config(runtime_config)
 
-        logger.info("loading Qwen backbone: %s", model_paths.qwen_backbone)
+        logger.info("加载 Qwen backbone: %s", model_paths.qwen_backbone)
         tokenizer_dir = _ensure_special_tokens_map(model_paths.qwen_backbone)
         self._overlay_dir = tokenizer_dir if tokenizer_dir != model_paths.qwen_backbone else None
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -186,7 +186,7 @@ class HybridIntegratedDifficultyRouter:
         self.head_dim = self.hidden_size // self.num_heads
         self.cg_input_dim = 30 * self.head_dim
 
-        logger.info("loading 5 CG-TabM routers...")
+        logger.info("加载 5 个 CG-TabM 路由器...")
         self._routers: Dict[str, Tuple[Any, CGTabMRegressor, List[Tuple[int, int]]]] = {}
         for name in ["swe", "tool", "gaia", "task", "prog"]:
             scaler_path = model_paths.get_scaler_path(name)
@@ -240,11 +240,11 @@ class HybridIntegratedDifficultyRouter:
                 )
 
             self.proto_enabled = True
-            logger.info("loaded proto artifact: %s", model_paths.proto_artifact)
+            logger.info("proto artifact 已加载: %s", model_paths.proto_artifact)
         else:
-            logger.warning("proto artifact not found; proto weighting disabled")
+            logger.warning("proto artifact 未找到，proto 加权已禁用")
 
-        logger.info("all router components loaded")
+        logger.info("所有路由组件加载完成")
 
         # Verify hook target is accessible on the loaded model
         first_layer = next(iter(next(iter(self._routers.values()))[2]))[0]
@@ -318,7 +318,7 @@ class HybridIntegratedDifficultyRouter:
             pred = pred.mean(dim=1)
         result = float(pred.item())
         if not math.isfinite(result):
-            logger.error("CG-TabM returned non-finite value: %s, falling back to 1.0", result)
+            logger.error("CG-TabM 返回非有限值: %s，回退到 1.0", result)
             return 1.0
         return result
 
@@ -382,7 +382,6 @@ class HybridIntegratedDifficultyRouter:
         """Run routing decision on chat messages. Returns scores + selected model."""
         request_id = request_id or f"chat-{uuid.uuid4().hex[:12]}"
         config = self._resolve_runtime_config(runtime_config)
-        weights = config["weights"]
         score_bands = config["score_bands"]
         score_bands_raw = config["score_bands_raw"]
         tier_model_map = config["tier_model_map"]
@@ -434,7 +433,7 @@ class HybridIntegratedDifficultyRouter:
             ROUTE_CODE: prog_0_2,
         }
         config_total_score_0_10, weighted_components = compute_weighted_total_score_0_10(
-            fiveway_scores_0_2, weights,
+            fiveway_scores_0_2,
         )
 
         # Proto weighting

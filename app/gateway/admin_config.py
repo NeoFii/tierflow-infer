@@ -1,4 +1,8 @@
-"""Gateway for fetching routing configuration from admin-service."""
+"""DEPRECATED: Gateway for fetching routing config via legacy ADMIN_SERVICE_URL.
+
+Use ApiServiceConfigGateway (api_service_config.py) instead.
+Retained for backward compat with existing deploy scripts that set ADMIN_SERVICE_URL.
+"""
 
 from __future__ import annotations
 
@@ -13,12 +17,12 @@ logger = get_logger(C.GATEWAY_ADMIN)
 
 
 class AdminConfigGateway(BaseGateway):
-    """Fetch active routing config (inference view) from admin-service."""
+    """Fetch active routing config via legacy ADMIN_SERVICE_URL."""
 
     def __init__(self) -> None:
         settings = get_settings()
         super().__init__(
-            "admin-service",
+            "tierflow-core",
             base_url=settings.ADMIN_SERVICE_URL,
             timeout=settings.CONFIG_FETCH_TIMEOUT_SECONDS,
         )
@@ -30,5 +34,5 @@ class AdminConfigGateway(BaseGateway):
                 allow_404=True,
             )
         except (InternalServiceUnavailableError, InternalCircuitOpenError):
-            logger.warning("admin-service unavailable, will use fallback", exc_info=True)
+            logger.warning("tierflow-core 不可用，将使用回退配置", exc_info=True)
             return None

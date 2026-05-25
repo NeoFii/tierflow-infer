@@ -1,4 +1,4 @@
-"""FastAPI app creation + CLI entry point for inference-service."""
+"""FastAPI app creation + CLI entry point for tierflow-infer."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def create_app() -> FastAPI:
         env=settings.ENV,
         log_dir=settings.LOG_DIR,
         enable_file_logging=settings.LOG_TO_FILE,
-        file_prefix="inference_service",
+        file_prefix="tierflow_infer",
         file_max_bytes=settings.LOG_FILE_MAX_BYTES,
         file_backup_count=settings.LOG_FILE_BACKUP_COUNT,
         ring_buffer_capacity=settings.LOG_RING_BUFFER_CAPACITY,
@@ -54,7 +54,7 @@ def create_app() -> FastAPI:
         from app.service.config_manager import ConfigManager
         from app.service.router_engine import HybridIntegratedDifficultyRouter
 
-        log_event(logger, logging.INFO, "serviceStarting", message="推理服务启动中", service=settings.SERVICE_NAME)
+        log_event(logger, logging.INFO, "service_starting", message="推理服务启动中")
         model_paths = load_model_paths(model_paths_config)
 
         gateway = ApiServiceConfigGateway()
@@ -73,19 +73,19 @@ def create_app() -> FastAPI:
 
         init_gpu_semaphore(settings.GPU_CONCURRENCY_LIMIT)
 
-        log_event(logger, logging.INFO, "serviceReady", message="推理服务就绪", service=settings.SERVICE_NAME)
+        log_event(logger, logging.INFO, "service_ready", message="推理服务就绪")
         yield
         await config_mgr.stop()
         engine.cleanup()
         await close_internal_clients()
-        log_event(logger, logging.INFO, "serviceStopping", message="推理服务停止中", service=settings.SERVICE_NAME)
+        log_event(logger, logging.INFO, "service_stopped", message="推理服务已停止")
 
     from app.common.internal import build_internal_auth_dependency
     from app.common.internal_logs import build_internal_logs_router
     from app.common.observability import install_observability
 
     app = FastAPI(
-        title="Inference Service",
+        title="tierflow-infer",
         version=settings.VERSION,
         docs_url="/docs" if settings.DEBUG else None,
         lifespan=lifespan,
@@ -98,7 +98,7 @@ def create_app() -> FastAPI:
 
     _logs_auth = build_internal_auth_dependency(
         settings.INTERNAL_SECRET,
-        allowed_callers={"api-service"},
+        allowed_callers={"tierflow-core"},
     )
     app.include_router(build_internal_logs_router(_logs_auth))
 
@@ -114,7 +114,7 @@ app = create_app()
 
 def cli() -> None:
     settings = get_settings()
-    parser = argparse.ArgumentParser(description="Inference Service")
+    parser = argparse.ArgumentParser(description="tierflow-infer")
     parser.add_argument("--host", type=str, default=settings.INFERENCE_HOST)
     parser.add_argument("--port", type=int, default=settings.PORT)
     args = parser.parse_args()
@@ -122,7 +122,7 @@ def cli() -> None:
     import uvicorn
 
     print("=" * 60)
-    print("starting inference-service")
+    print("starting tierflow-infer")
     print(f"  host: {args.host}")
     print(f"  port: {args.port}")
     print("=" * 60)

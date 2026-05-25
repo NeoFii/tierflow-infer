@@ -1,4 +1,4 @@
-"""FastAPI dependency injection functions for inference-service."""
+"""FastAPI dependency injection functions for tierflow-infer."""
 
 from __future__ import annotations
 
@@ -52,14 +52,14 @@ def require_inference_secret(
     if not expected:
         if settings.INFERENCE_ALLOW_INSECURE_DEV and settings.ENV != "production":
             logger.warning(
-                "INFERENCE_SERVICE_SECRET not set — classify endpoint UNPROTECTED (dev mode)"
+                "INFERENCE_SERVICE_SECRET 未设置 — classify 端点无保护 (开发模式)"
             )
             return ""
         if settings.INFERENCE_ALLOW_INSECURE_DEV and settings.ENV == "production":
             logger.error(
-                "INFERENCE_ALLOW_INSECURE_DEV is set in production — refusing to bypass auth"
+                "INFERENCE_ALLOW_INSECURE_DEV 在生产环境中启用 — 拒绝绕过认证"
             )
-        raise InferenceUnavailableError("inference service not configured")
+        raise InferenceUnavailableError("推理服务未配置")
     if not x_inference_secret or not hmac.compare_digest(
         x_inference_secret.encode("utf-8"), expected.encode("utf-8")
     ):

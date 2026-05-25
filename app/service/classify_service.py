@@ -60,7 +60,7 @@ class ClassifyService:
             except Exception as exc:
                 engine_latency_ms = round((time.monotonic() - t_start) * 1000, 2)
                 log_event(
-                    logger, logging.ERROR, "classifyFailed",
+                    logger, logging.ERROR, "classify_failed",
                     message="分类推理失败",
                     requestId=request_id,
                     profileId=request.profile_id,
@@ -82,7 +82,7 @@ class ClassifyService:
         soft_timeout = elapsed > CLASSIFY_SOFT_TIMEOUT_SECONDS
 
         log_event(
-            logger, logging.INFO, "classifyComplete",
+            logger, logging.INFO, "classify_complete",
             message=f"分类完成 score={result['total_score_0_10']:.1f} {latency_ms}ms",
             requestId=request_id,
             profileId=request.profile_id,
