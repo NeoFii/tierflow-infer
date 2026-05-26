@@ -11,9 +11,8 @@
     },
     "tool": {
       "heads": [[26,3],[26,19],[25,7],[27,15],[19,24],[26,2],[25,15],[27,3],[18,4],[26,18],[21,10],[27,19],[18,15],[23,14],[27,14],[26,8],[26,16],[20,26],[18,5],[22,22],[22,21],[24,5],[27,13],[18,7],[26,23],[26,22],[27,6],[25,11],[25,25],[27,20]],
-      "model": "/root/autodl-tmp/model/5roads/tool/best_cg_tabm_router_apibank.pth",
-      "scaler": "/root/autodl-tmp/model/5roads/tool/cg_tabm_robust_scaler_apibank.pkl",
-      "meta": ""
+      "model": "/root/autodl-tmp/model/5roads/tool/best_cg_tabm_from_final_tsv.pth",
+      "scaler": "/root/autodl-tmp/model/5roads/tool/best_cg_tabm_scaler_from_final_tsv.pkl"
     },
     "gaia": {
       "heads": [[20,2],[25,4],[26,26],[24,2],[27,3],[21,25],[27,9],[26,24],[26,3],[27,7],[20,1],[27,2],[18,18],[25,3],[25,18],[26,2],[26,15],[19,27],[27,23],[18,7],[19,16],[23,21],[26,18],[18,17],[21,23],[27,5],[25,11],[26,25],[19,0],[21,13]],
@@ -27,10 +26,10 @@
     },
     "prog": {
       "heads": [[27,10],[26,22],[25,4],[27,8],[27,13],[26,12],[24,18],[21,23],[19,0],[26,25],[27,7],[24,5],[25,1],[26,26],[23,25],[18,7],[14,23],[26,8],[27,0],[6,10],[24,16],[24,22],[27,9],[16,13],[19,2],[24,2],[9,16],[20,16],[13,17],[15,26]],
-      "model": "/root/autodl-tmp/model/5roads/prog/best_cg_tabm_router_gaia.pth",
-      "scaler": "/root/autodl-tmp/model/5roads/prog/cg_tabm_robust_scaler_gaia.pkl",
-      "meta": ""
+      "model": "/root/autodl-tmp/model/5roads/prog/best_cg_tabm_router_apps.pth",
+      "scaler": "/root/autodl-tmp/model/5roads/prog/cg_tabm_robust_scaler_apps.pkl",
+      "meta": "/root/autodl-tmp/model/5roads/prog/cg_tabm_router_meta_apps.json"
     }
   },
-  "proto_artifact": ""
+  "proto_artifact": "/root/autodl-tmp/model/5roads/proto_artifact_v4.npz"
 }

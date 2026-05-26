@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ClassifyRequest(BaseModel):
-    messages: list[Dict[str, Any]] = Field(..., min_length=1, max_length=256)
+    messages: list[Dict[str, Any]] = Field(..., min_length=1, max_length=512)
     profile_id: str = Field(..., min_length=1, max_length=64)
     request_id: Optional[str] = Field(
         default=None, max_length=64, pattern=r"^[a-zA-Z0-9_\-]*$"

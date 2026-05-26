@@ -33,11 +33,7 @@ from app.core.config import (
     ROUTE_TOOL,
 )
 from app.nn.cg_tabm import CGTabMRegressor
-from app.utils.input_builder import (
-    build_full_llm_input_for_chat_messages,
-    build_proto_semantic_text,
-    shared_record_from_chat_messages,
-)
+from app.utils.input_builder import build_proto_semantic_text, build_routing_input
 from app.utils.runtime_config import clone_runtime_config, normalize_runtime_config
 from app.utils.scoring import (
     compute_weighted_total_score_0_10,
@@ -388,28 +384,29 @@ class HybridIntegratedDifficultyRouter:
 
         fallback_routes: List[str] = []
 
-        # Build inputs
-        shared_tool = shared_record_from_chat_messages(messages, request_id=request_id)
-        other_full_chat, other_full_debug_text = build_full_llm_input_for_chat_messages(messages)
+        # v4: unified routing input — single forward pass for all 5 heads
+        routing_input = build_routing_input(messages)
 
-        tool_canonical_text = shared_tool["canonical_text"]
+        dump_dir = os.environ.get("ROUTER_INPUT_DUMP_DIR")
+        if dump_dir:
+            os.makedirs(dump_dir, exist_ok=True)
+            dump_path = os.path.join(dump_dir, f"{request_id}.txt")
+            with open(dump_path, "w", encoding="utf-8") as f:
+                f.write(routing_input)
 
-        # Get all heads needed
         swe_scaler, swe_router, swe_heads = self._routers["swe"]
         tool_scaler, tool_router, tool_heads = self._routers["tool"]
         gaia_scaler, gaia_router, gaia_heads = self._routers["gaia"]
         task_scaler, task_router, task_heads = self._routers["task"]
         prog_scaler, prog_router, prog_heads = self._routers["prog"]
 
-        # Forward pass
-        tool_cache = self._run_with_heads(tool_canonical_text, [tool_heads])
-        cache_other = self._run_with_heads(other_full_chat, [swe_heads, gaia_heads, task_heads, prog_heads])
+        cache = self._run_with_heads(routing_input, [swe_heads, tool_heads, gaia_heads, task_heads, prog_heads])
 
-        raw_swe = self._forward_cgtabm(cache_other, swe_scaler, swe_router, swe_heads)
-        raw_tool = self._forward_cgtabm(tool_cache, tool_scaler, tool_router, tool_heads)
-        raw_gaia = self._forward_cgtabm(cache_other, gaia_scaler, gaia_router, gaia_heads)
-        raw_task = self._forward_cgtabm(cache_other, task_scaler, task_router, task_heads)
-        raw_prog = self._forward_cgtabm(cache_other, prog_scaler, prog_router, prog_heads)
+        raw_swe = self._forward_cgtabm(cache, swe_scaler, swe_router, swe_heads)
+        raw_tool = self._forward_cgtabm(cache, tool_scaler, tool_router, tool_heads)
+        raw_gaia = self._forward_cgtabm(cache, gaia_scaler, gaia_router, gaia_heads)
+        raw_task = self._forward_cgtabm(cache, task_scaler, task_router, task_heads)
+        raw_prog = self._forward_cgtabm(cache, prog_scaler, prog_router, prog_heads)
 
         raw_scores = {
             ROUTE_ERROR: raw_swe, ROUTE_TOOL: raw_tool,
@@ -452,8 +449,10 @@ class HybridIntegratedDifficultyRouter:
         routing_tier = resolve_score_band(total_score_0_10, score_bands)
         selected_model = tier_model_map[routing_tier]
 
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         return {
-            "request_id": request_id,
             "scores_0_2": {k: round(v, 4) for k, v in fiveway_scores_0_2.items()},
             "proto_weighted_0_2": round(proto_info["weighted_score_0_2"], 4) if proto_info else None,
             "total_score_0_10": round(total_score_0_10, 4),
