@@ -34,14 +34,11 @@ from app.core.config import (
 )
 from app.nn.cg_tabm import CGTabMRegressor
 from app.utils.input_builder import build_proto_semantic_text, build_routing_input
-from app.utils.runtime_config import clone_runtime_config, normalize_runtime_config
 from app.utils.scoring import (
     compute_weighted_total_score_0_10,
     l2_normalize_vec,
-    level_from_0_10,
     normalize_route,
     norm_0_2_to_bucket,
-    resolve_score_band,
     scale_final_score_to_0_10,
     softmax_np,
 )
@@ -142,8 +139,6 @@ class HybridIntegratedDifficultyRouter:
     def __init__(
         self,
         model_paths: ModelPathsConfig,
-        *,
-        runtime_config: Dict[str, Any] | None = None,
     ):
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -154,7 +149,6 @@ class HybridIntegratedDifficultyRouter:
         self.model_paths = model_paths
         self.device = torch.device(model_paths.device)
         self.max_input_length = model_paths.max_input_length
-        self.default_runtime_config = normalize_runtime_config(runtime_config)
 
         logger.info("加载 Qwen backbone: %s", model_paths.qwen_backbone)
         tokenizer_dir = _ensure_special_tokens_map(model_paths.qwen_backbone)
@@ -254,11 +248,6 @@ class HybridIntegratedDifficultyRouter:
                 f"hook target template '{self.model_paths._hook_target_template}' "
                 f"is incompatible with loaded model architecture: {exc}"
             ) from exc
-
-    def _resolve_runtime_config(self, runtime_config: Dict[str, Any] | None = None) -> Dict[str, Any]:
-        if runtime_config is None:
-            return clone_runtime_config(self.default_runtime_config)
-        return normalize_runtime_config(runtime_config)
 
     @torch.no_grad()
     def _run_with_heads(self, raw_text_or_chat, heads_group: List[List[Tuple[int, int]]]) -> Dict[int, torch.Tensor]:
@@ -373,14 +362,9 @@ class HybridIntegratedDifficultyRouter:
         messages: List[Dict[str, Any]],
         *,
         request_id: str | None = None,
-        runtime_config: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
-        """Run routing decision on chat messages. Returns scores + selected model."""
+        """Run routing scoring on chat messages. Returns raw scores only."""
         request_id = request_id or f"chat-{uuid.uuid4().hex[:12]}"
-        config = self._resolve_runtime_config(runtime_config)
-        score_bands = config["score_bands"]
-        score_bands_raw = config["score_bands_raw"]
-        tier_model_map = config["tier_model_map"]
 
         fallback_routes: List[str] = []
 
@@ -446,21 +430,15 @@ class HybridIntegratedDifficultyRouter:
             total_score_0_10 = config_total_score_0_10
             final_score_source = "runtime_weighted_0_10_fallback"
 
-        routing_tier = resolve_score_band(total_score_0_10, score_bands)
-        selected_model = tier_model_map[routing_tier]
-
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
         return {
+            "request_id": request_id,
             "scores_0_2": {k: round(v, 4) for k, v in fiveway_scores_0_2.items()},
             "proto_weighted_0_2": round(proto_info["weighted_score_0_2"], 4) if proto_info else None,
             "total_score_0_10": round(total_score_0_10, 4),
             "score_source": final_score_source,
-            "routing_tier": routing_tier,
-            "selected_model": selected_model,
-            "tier_model_map": tier_model_map,
-            "score_bands_raw": score_bands_raw,
             "fallback_routes": fallback_routes,
         }
 

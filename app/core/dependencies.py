@@ -13,13 +13,11 @@ from app.core.config import get_settings
 from app.core.exceptions import InferenceAuthError, InferenceUnavailableError
 
 if TYPE_CHECKING:
-    from app.service.config_manager import ConfigManager
     from app.service.router_engine import HybridIntegratedDifficultyRouter
 
 logger = get_logger(C.CORE_DEPS)
 
 _engine: HybridIntegratedDifficultyRouter | None = None
-_config_manager: ConfigManager | None = None
 
 
 def set_engine(engine: HybridIntegratedDifficultyRouter) -> None:
@@ -27,21 +25,10 @@ def set_engine(engine: HybridIntegratedDifficultyRouter) -> None:
     _engine = engine
 
 
-def set_config_manager(cm: ConfigManager) -> None:
-    global _config_manager
-    _config_manager = cm
-
-
 def get_engine() -> HybridIntegratedDifficultyRouter:
     if _engine is None:
         raise InferenceUnavailableError("router engine not initialized")
     return _engine
-
-
-def get_config_manager() -> ConfigManager:
-    if _config_manager is None:
-        raise InferenceUnavailableError("config manager not initialized")
-    return _config_manager
 
 
 def require_inference_secret(

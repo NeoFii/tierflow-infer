@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from app.common.components import C
 from app.common.observability import configure_logging, get_logger, log_event
 from app.core.config import get_settings, load_model_paths
-from app.core.dependencies import set_config_manager, set_engine
+from app.core.dependencies import set_engine
 from app.core.exceptions import install_inference_error_handlers
 from app.core.router import api_router
 
@@ -49,33 +49,19 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         from app.common.internal import close_internal_clients
-        from app.gateway.api_service_config import ApiServiceConfigGateway
         from app.service.classify_service import init_gpu_semaphore
-        from app.service.config_manager import ConfigManager
         from app.service.router_engine import HybridIntegratedDifficultyRouter
 
         log_event(logger, logging.INFO, "service_starting", message="推理服务启动中")
         model_paths = load_model_paths(model_paths_config)
 
-        gateway = ApiServiceConfigGateway()
-        config_mgr = ConfigManager(
-            gateway=gateway,
-            refresh_interval_seconds=settings.CONFIG_REFRESH_INTERVAL_SECONDS,
-        )
-        await config_mgr.start()
-        set_config_manager(config_mgr)
-
-        engine = HybridIntegratedDifficultyRouter(
-            model_paths,
-            runtime_config=config_mgr.load(),
-        )
+        engine = HybridIntegratedDifficultyRouter(model_paths)
         set_engine(engine)
 
         init_gpu_semaphore(settings.GPU_CONCURRENCY_LIMIT)
 
         log_event(logger, logging.INFO, "service_ready", message="推理服务就绪")
         yield
-        await config_mgr.stop()
         engine.cleanup()
         await close_internal_clients()
         log_event(logger, logging.INFO, "service_stopped", message="推理服务已停止")

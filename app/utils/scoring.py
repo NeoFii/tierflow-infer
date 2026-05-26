@@ -1,9 +1,9 @@
-"""Score normalization, band parsing, tier resolution, weighted computation."""
+"""Score normalization and weighted computation."""
 
 from __future__ import annotations
 
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 
@@ -27,22 +27,6 @@ def norm_0_2_to_bucket(score: float) -> str:
     return "level3"
 
 
-def raw_score_to_bucket(score: float) -> str:
-    if score < 0.5:
-        return "level1"
-    elif score < 1.5:
-        return "level2"
-    return "level3"
-
-
-def route_suggestion(level: str) -> str:
-    return {
-        "level1": "small_or_fast_model",
-        "level2": "mid_model",
-        "level3": "strong_model",
-    }[level]
-
-
 def scale_final_score_to_0_10(
     score_raw: float,
     lower: float = 0.40,
@@ -52,44 +36,6 @@ def scale_final_score_to_0_10(
         return 5.0
     score_0_10 = 10.0 * (float(score_raw) - lower) / (upper - lower)
     return float(max(0.0, min(10.0, score_0_10)))
-
-
-def level_from_0_10(score_0_10: float) -> str:
-    if score_0_10 < 10.0 / 3.0:
-        return "level1"
-    if score_0_10 < 20.0 / 3.0:
-        return "level2"
-    return "level3"
-
-
-def parse_score_bands(raw: str) -> List[Tuple[float, float, int]]:
-    bands: List[Tuple[float, float, int]] = []
-    for item in raw.split(","):
-        left, _, right = item.partition(":")
-        if not left or not right:
-            continue
-        tier = int(right.strip())
-        if "-" in left:
-            start_raw, _, end_raw = left.partition("-")
-            start = float(start_raw.strip())
-            end = float(end_raw.strip())
-        else:
-            start = end = float(left.strip())
-        if start > end:
-            raise ValueError("score band start must be <= end")
-        bands.append((start, end, tier))
-    if not bands:
-        raise ValueError("score bands must not be empty")
-    return bands
-
-
-def resolve_score_band(score: float, bands: List[Tuple[float, float, int]]) -> int:
-    for start, end, tier in bands:
-        if start <= score <= end:
-            return tier
-    if score < bands[0][0]:
-        return bands[0][2]
-    return bands[-1][2]
 
 
 def compute_weighted_total_score_0_10(

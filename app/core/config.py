@@ -131,13 +131,6 @@ class InferenceSettings(BaseServiceSettings):
 
     ROUTER_MODEL_PATHS: str = ""
 
-    API_SERVICE_URL: str = "http://127.0.0.1:8000"
-
-    # DEPRECATED: Use API_SERVICE_URL. Kept for backward compat with existing deploy scripts.
-    ADMIN_SERVICE_URL: str = "http://127.0.0.1:8001"
-    CONFIG_REFRESH_INTERVAL_SECONDS: int = 60
-    CONFIG_FETCH_TIMEOUT_SECONDS: float = 5.0
-
     GPU_CONCURRENCY_LIMIT: int = 8
 
     # Override base class validator: tierflow-infer has no DB/JWT/Redis
