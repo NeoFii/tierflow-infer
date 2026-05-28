@@ -1,4 +1,4 @@
-"""Inference-service specific exceptions and error handler registration."""
+"""tierflow-infer 异常定义与错误处理器注册。"""
 
 from __future__ import annotations
 
@@ -76,7 +76,6 @@ def _log_inference_error(
         level,
         "inference_error",
         message=f"{request.method} {request.url.path} {status_code} {error_code}",
-        service="inference_service",
         request_id=get_request_id(),
         method=request.method,
         path=request.url.path,
@@ -119,4 +118,4 @@ def install_inference_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def _catchall_error(request: Request, exc: Exception) -> JSONResponse:
         _log_inference_error(request, 500, "model_runtime", exc)
-        return _build_error_response(500, "model_runtime", "internal inference error")
+        return _build_error_response(500, "model_runtime", "推理引擎内部错误")

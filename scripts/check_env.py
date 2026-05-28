@@ -1,4 +1,4 @@
-"""Validate inference-service runtime environment before startup."""
+"""Validate tierflow-infer runtime environment before startup."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def format_validation_result(result: ValidationResult) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate inference-service environment")
+    parser = argparse.ArgumentParser(description="Validate tierflow-infer environment")
     parser.add_argument("--no-dotenv", action="store_true", help="Skip loading .env file")
     args = parser.parse_args()
 

@@ -11,7 +11,9 @@ import threading
 import uuid
 from collections import deque
 from contextvars import ContextVar, Token
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+_SHANGHAI_TZ = timezone(timedelta(hours=8))
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from time import perf_counter
@@ -80,9 +82,8 @@ def _build_entry(
     component = fields.pop("component", _resolve_component(record.name))
 
     entry: dict[str, Any] = {
-        "timestamp": datetime.fromtimestamp(record.created, timezone.utc)
-        .isoformat(timespec="milliseconds")
-        .replace("+00:00", "Z"),
+        "timestamp": datetime.fromtimestamp(record.created, _SHANGHAI_TZ)
+        .isoformat(timespec="milliseconds"),
         "level": record.levelname,
         "service": service,
         "component": component,
@@ -188,7 +189,7 @@ def get_ring_buffer() -> RingBufferHandler | None:
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return datetime.now(_SHANGHAI_TZ).isoformat(timespec="milliseconds")
 
 
 class JsonLogFormatter(logging.Formatter):

@@ -33,19 +33,12 @@ from app.core.config import (
     ROUTE_TOOL,
 )
 from app.nn.cg_tabm import CGTabMRegressor
-from app.utils.input_builder import (
-    build_full_llm_input_for_chat_messages,
-    build_proto_semantic_text,
-    shared_record_from_chat_messages,
-)
-from app.utils.runtime_config import clone_runtime_config, normalize_runtime_config
+from app.utils.input_builder import build_proto_semantic_text, build_routing_input
 from app.utils.scoring import (
     compute_weighted_total_score_0_10,
     l2_normalize_vec,
-    level_from_0_10,
     normalize_route,
     norm_0_2_to_bucket,
-    resolve_score_band,
     scale_final_score_to_0_10,
     softmax_np,
 )
@@ -127,7 +120,7 @@ def _ensure_special_tokens_map(model_dir: str) -> str:
     with open(os.path.join(overlay, "special_tokens_map.json"), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-    logger.info("created special_tokens_map overlay at %s", overlay)
+    logger.info("special_tokens_map overlay 已创建: %s", overlay)
     return overlay
 
 
@@ -146,8 +139,6 @@ class HybridIntegratedDifficultyRouter:
     def __init__(
         self,
         model_paths: ModelPathsConfig,
-        *,
-        runtime_config: Dict[str, Any] | None = None,
     ):
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
@@ -158,9 +149,8 @@ class HybridIntegratedDifficultyRouter:
         self.model_paths = model_paths
         self.device = torch.device(model_paths.device)
         self.max_input_length = model_paths.max_input_length
-        self.default_runtime_config = normalize_runtime_config(runtime_config)
 
-        logger.info("loading Qwen backbone: %s", model_paths.qwen_backbone)
+        logger.info("加载 Qwen backbone: %s", model_paths.qwen_backbone)
         tokenizer_dir = _ensure_special_tokens_map(model_paths.qwen_backbone)
         self._overlay_dir = tokenizer_dir if tokenizer_dir != model_paths.qwen_backbone else None
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -186,7 +176,7 @@ class HybridIntegratedDifficultyRouter:
         self.head_dim = self.hidden_size // self.num_heads
         self.cg_input_dim = 30 * self.head_dim
 
-        logger.info("loading 5 CG-TabM routers...")
+        logger.info("加载 5 个 CG-TabM 路由器...")
         self._routers: Dict[str, Tuple[Any, CGTabMRegressor, List[Tuple[int, int]]]] = {}
         for name in ["swe", "tool", "gaia", "task", "prog"]:
             scaler_path = model_paths.get_scaler_path(name)
@@ -240,11 +230,11 @@ class HybridIntegratedDifficultyRouter:
                 )
 
             self.proto_enabled = True
-            logger.info("loaded proto artifact: %s", model_paths.proto_artifact)
+            logger.info("proto artifact 已加载: %s", model_paths.proto_artifact)
         else:
-            logger.warning("proto artifact not found; proto weighting disabled")
+            logger.warning("proto artifact 未找到，proto 加权已禁用")
 
-        logger.info("all router components loaded")
+        logger.info("所有路由组件加载完成")
 
         # Verify hook target is accessible on the loaded model
         first_layer = next(iter(next(iter(self._routers.values()))[2]))[0]
@@ -258,11 +248,6 @@ class HybridIntegratedDifficultyRouter:
                 f"hook target template '{self.model_paths._hook_target_template}' "
                 f"is incompatible with loaded model architecture: {exc}"
             ) from exc
-
-    def _resolve_runtime_config(self, runtime_config: Dict[str, Any] | None = None) -> Dict[str, Any]:
-        if runtime_config is None:
-            return clone_runtime_config(self.default_runtime_config)
-        return normalize_runtime_config(runtime_config)
 
     @torch.no_grad()
     def _run_with_heads(self, raw_text_or_chat, heads_group: List[List[Tuple[int, int]]]) -> Dict[int, torch.Tensor]:
@@ -318,7 +303,7 @@ class HybridIntegratedDifficultyRouter:
             pred = pred.mean(dim=1)
         result = float(pred.item())
         if not math.isfinite(result):
-            logger.error("CG-TabM returned non-finite value: %s, falling back to 1.0", result)
+            logger.error("CG-TabM 返回非有限值: %s，回退到 1.0", result)
             return 1.0
         return result
 
@@ -377,40 +362,35 @@ class HybridIntegratedDifficultyRouter:
         messages: List[Dict[str, Any]],
         *,
         request_id: str | None = None,
-        runtime_config: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
-        """Run routing decision on chat messages. Returns scores + selected model."""
+        """Run routing scoring on chat messages. Returns raw scores only."""
         request_id = request_id or f"chat-{uuid.uuid4().hex[:12]}"
-        config = self._resolve_runtime_config(runtime_config)
-        weights = config["weights"]
-        score_bands = config["score_bands"]
-        score_bands_raw = config["score_bands_raw"]
-        tier_model_map = config["tier_model_map"]
 
         fallback_routes: List[str] = []
 
-        # Build inputs
-        shared_tool = shared_record_from_chat_messages(messages, request_id=request_id)
-        other_full_chat, other_full_debug_text = build_full_llm_input_for_chat_messages(messages)
+        # v4: unified routing input — single forward pass for all 5 heads
+        routing_input = build_routing_input(messages)
 
-        tool_canonical_text = shared_tool["canonical_text"]
+        dump_dir = os.environ.get("ROUTER_INPUT_DUMP_DIR")
+        if dump_dir:
+            os.makedirs(dump_dir, exist_ok=True)
+            dump_path = os.path.join(dump_dir, f"{request_id}.txt")
+            with open(dump_path, "w", encoding="utf-8") as f:
+                f.write(routing_input)
 
-        # Get all heads needed
         swe_scaler, swe_router, swe_heads = self._routers["swe"]
         tool_scaler, tool_router, tool_heads = self._routers["tool"]
         gaia_scaler, gaia_router, gaia_heads = self._routers["gaia"]
         task_scaler, task_router, task_heads = self._routers["task"]
         prog_scaler, prog_router, prog_heads = self._routers["prog"]
 
-        # Forward pass
-        tool_cache = self._run_with_heads(tool_canonical_text, [tool_heads])
-        cache_other = self._run_with_heads(other_full_chat, [swe_heads, gaia_heads, task_heads, prog_heads])
+        cache = self._run_with_heads(routing_input, [swe_heads, tool_heads, gaia_heads, task_heads, prog_heads])
 
-        raw_swe = self._forward_cgtabm(cache_other, swe_scaler, swe_router, swe_heads)
-        raw_tool = self._forward_cgtabm(tool_cache, tool_scaler, tool_router, tool_heads)
-        raw_gaia = self._forward_cgtabm(cache_other, gaia_scaler, gaia_router, gaia_heads)
-        raw_task = self._forward_cgtabm(cache_other, task_scaler, task_router, task_heads)
-        raw_prog = self._forward_cgtabm(cache_other, prog_scaler, prog_router, prog_heads)
+        raw_swe = self._forward_cgtabm(cache, swe_scaler, swe_router, swe_heads)
+        raw_tool = self._forward_cgtabm(cache, tool_scaler, tool_router, tool_heads)
+        raw_gaia = self._forward_cgtabm(cache, gaia_scaler, gaia_router, gaia_heads)
+        raw_task = self._forward_cgtabm(cache, task_scaler, task_router, task_heads)
+        raw_prog = self._forward_cgtabm(cache, prog_scaler, prog_router, prog_heads)
 
         raw_scores = {
             ROUTE_ERROR: raw_swe, ROUTE_TOOL: raw_tool,
@@ -434,7 +414,7 @@ class HybridIntegratedDifficultyRouter:
             ROUTE_CODE: prog_0_2,
         }
         config_total_score_0_10, weighted_components = compute_weighted_total_score_0_10(
-            fiveway_scores_0_2, weights,
+            fiveway_scores_0_2,
         )
 
         # Proto weighting
@@ -450,8 +430,8 @@ class HybridIntegratedDifficultyRouter:
             total_score_0_10 = config_total_score_0_10
             final_score_source = "runtime_weighted_0_10_fallback"
 
-        routing_tier = resolve_score_band(total_score_0_10, score_bands)
-        selected_model = tier_model_map[routing_tier]
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         return {
             "request_id": request_id,
@@ -459,10 +439,6 @@ class HybridIntegratedDifficultyRouter:
             "proto_weighted_0_2": round(proto_info["weighted_score_0_2"], 4) if proto_info else None,
             "total_score_0_10": round(total_score_0_10, 4),
             "score_source": final_score_source,
-            "routing_tier": routing_tier,
-            "selected_model": selected_model,
-            "tier_model_map": tier_model_map,
-            "score_bands_raw": score_bands_raw,
             "fallback_routes": fallback_routes,
         }
 

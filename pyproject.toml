@@ -1,7 +1,7 @@
 [project]
-name = "eucal-inference-service"
+name = "tierflow-infer"
 version = "0.1.0"
-description = "Inference service: ML model serving"
+description = "tierflow-infer: GPU-based difficulty classification for LLM routing"
 requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.109.0",

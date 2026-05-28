@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ClassifyRequest(BaseModel):
-    messages: list[Dict[str, Any]] = Field(..., min_length=1, max_length=256)
-    profile_id: str = Field(..., min_length=1, max_length=64)
+    messages: list[Dict[str, Any]] = Field(..., min_length=1, max_length=512)
+    profile_id: Optional[str] = Field(default=None, max_length=64)
     request_id: Optional[str] = Field(
         default=None, max_length=64, pattern=r"^[a-zA-Z0-9_\-]*$"
     )
@@ -29,6 +29,4 @@ class ClassifyResponse(BaseModel):
     proto_weighted_0_2: Optional[float] = None
     total_score_0_10: float
     score_source: str
-    config_version: Optional[int] = None
-    config_source: Optional[str] = None
     latency_ms: Optional[float] = None

@@ -16,13 +16,6 @@ from app.common.config import BaseServiceSettings
 # Five-way route order (fixed, must match training)
 # ---------------------------------------------------------------------------
 FIVEWAY_ROUTE_ORDER: List[str] = ["纠错", "工具调用", "通用任务", "任务拆解", "编程"]
-FIVEWAY_DEFAULT_WEIGHTS: Dict[str, float] = {
-    "纠错": 1.0,
-    "工具调用": 1.0,
-    "通用任务": 1.0,
-    "任务拆解": 1.0,
-    "编程": 1.0,
-}
 
 ROUTE_ERROR = FIVEWAY_ROUTE_ORDER[0]
 ROUTE_TOOL = FIVEWAY_ROUTE_ORDER[1]
@@ -53,8 +46,8 @@ PROTO_ROUTE_TO_LABEL: Dict[str, str] = {
     "编程": "prog",
 }
 PROTO_LABEL_TO_ROUTE: Dict[str, str] = {v: k for k, v in PROTO_ROUTE_TO_LABEL.items()}
-FINAL_SCORE_LOWER: float = 0.40
-FINAL_SCORE_UPPER: float = 1.45
+FINAL_SCORE_LOWER: float = 0.20
+FINAL_SCORE_UPPER: float = 2.0
 FINAL_SCORE_SOURCE: str = "proto_weighted_0_2"
 
 
@@ -127,9 +120,9 @@ def load_model_paths(config_path: str | None = None) -> ModelPathsConfig:
 # Service settings (pydantic-settings, extends BaseServiceSettings)
 # ---------------------------------------------------------------------------
 class InferenceSettings(BaseServiceSettings):
-    """Inference-service specific settings."""
+    """tierflow-infer 服务配置。"""
 
-    SERVICE_NAME: str = "inference-service"
+    SERVICE_NAME: str = "tierflow-infer"
     PORT: int = 8001
 
     INFERENCE_HOST: str = "0.0.0.0"
@@ -138,16 +131,9 @@ class InferenceSettings(BaseServiceSettings):
 
     ROUTER_MODEL_PATHS: str = ""
 
-    API_SERVICE_URL: str = "http://127.0.0.1:8000"
-
-    # DEPRECATED: Use API_SERVICE_URL. Kept for backward compat with existing deploy scripts.
-    ADMIN_SERVICE_URL: str = "http://127.0.0.1:8001"
-    CONFIG_REFRESH_INTERVAL_SECONDS: int = 60
-    CONFIG_FETCH_TIMEOUT_SECONDS: float = 5.0
-
     GPU_CONCURRENCY_LIMIT: int = 8
 
-    # Override base class validator: inference-service has no DB/JWT/Redis
+    # Override base class validator: tierflow-infer has no DB/JWT/Redis
     @model_validator(mode="after")
     def validate_required_fields(self) -> "InferenceSettings":
         if not self.INTERNAL_SECRET:
