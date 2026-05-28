@@ -46,8 +46,8 @@ PROTO_ROUTE_TO_LABEL: Dict[str, str] = {
     "编程": "prog",
 }
 PROTO_LABEL_TO_ROUTE: Dict[str, str] = {v: k for k, v in PROTO_ROUTE_TO_LABEL.items()}
-FINAL_SCORE_LOWER: float = 0.40
-FINAL_SCORE_UPPER: float = 1.45
+FINAL_SCORE_LOWER: float = 0.20
+FINAL_SCORE_UPPER: float = 2.0
 FINAL_SCORE_SOURCE: str = "proto_weighted_0_2"
 
 
