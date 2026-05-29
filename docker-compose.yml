@@ -7,12 +7,11 @@ services:
     env_file: .env
     environment:
       ROUTER_MODEL_PATHS: /app/config/model_paths.json
-      ROUTER_RUNTIME_CONFIG: /app/config/runtime_config.json
       INFERENCE_LOG_DIR: /app/logs
       LOG_DIR: /app/logs
-    command: ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004", "--workers", "1"]
+    command: ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
     ports:
-      - "8004:8004"
+      - "8001:8001"
     volumes:
       - inference_logs:/app/logs
       - ./config:/app/config:ro
@@ -25,7 +24,7 @@ services:
               count: 1
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "python", "scripts/runtime_probe.py", "http-ready", "--port", "8004"]
+      test: ["CMD", "python", "scripts/runtime_probe.py", "http-ready", "--port", "8001"]
       interval: 30s
       timeout: 15s
       retries: 3

@@ -129,14 +129,13 @@ class AdminConfigGateway(BaseGateway):
 
 ```bash
 # 开发启动
-cd services/inference-service
-PYTHONPATH=src uvicorn inference_service.main:app --host 0.0.0.0 --port 8004 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
 # Lint
-ruff check src/
+ruff check app/
 
 # 语法检查
-python -c "from inference_service.main import create_app"
+python -c "from app.main import create_app"
 ```
 
 ## 文件命名

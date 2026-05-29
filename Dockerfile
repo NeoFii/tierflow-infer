@@ -9,13 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install --no-cache-dir uv
 
 WORKDIR /app
-COPY pyproject.toml ./
-COPY src/ src/
+COPY pyproject.toml uv.lock ./
+COPY app/ app/
 COPY scripts/ scripts/
 
 RUN uv venv /app/.venv && \
     . /app/.venv/bin/activate && \
-    uv lock && uv sync --frozen --no-dev
+    uv sync --frozen --no-dev
 
 FROM python:3.12-slim AS runner
 
@@ -27,6 +27,7 @@ RUN useradd --create-home --shell /bin/bash appuser && \
 
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
+COPY --chown=appuser:appuser app/ /app/app/
 COPY --chown=appuser:appuser scripts/ /app/scripts/
 
 ENV PATH="/app/.venv/bin:$PATH" \
@@ -34,6 +35,6 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1
 
 USER appuser
-EXPOSE 8004
+EXPOSE 8001
 
-CMD ["uvicorn", "inference_service.main:app", "--host", "0.0.0.0", "--port", "8004", "--workers", "1"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
